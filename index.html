@@ -1,10 +1,120 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
   <title>リモコン</title>
+  <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/css/bootstrap.min.css" integrity="sha384-MCw98/SFnGE8fJT3GXwEOngsV7Zt27NXFoaoApmYm81iuXoPkFOJwJ8ERdknLPMO" crossorigin="anonymous">
+
 </head>
 <body>
+  <div id="ble-connect-button" class="show">
+    <div class="view-inner">
+      <div class="btn btn-block btn-lg btn-primary">CONNECT</div>
+    </div>
+  </div>
+
+  <nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <a class="navbar-brand" href="#">Navbar</a>
+    <div class="collapse navbar-collapse mr-auto">
+      <ul class="navbar-nav">
+        <li class="nav-item active">
+          <a class="nav-link" href="#">Home <span class="sr-only">(current)</span></a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#">Features</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#">Pricing</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link disabled" href="#">Disabled</a>
+        </li>
+      </ul>
+    </div>
+    <div class="collapse navbar-collapse">
+      <ul class="navbar-nav">
+        <li class="nav-item">
+          <a class="nav-link" href="#">シャットダウン</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" href="#">再起動</a>
+        </li>
+      </ul>
+    </div>
+  </nav>
+
 Web Bluetoothを使ったリモコンを作る予定です．
+
+<script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.3/js/bootstrap.min.js" integrity="sha384-ChfqqxuZUCnJSK3+MXmPNIyE6ZbWh2IMqE241rYiqJxyMiZ6OW/JmZQ5stwEULTy" crossorigin="anonymous"></script>
+<script>
+
+  const SERVICE_UUID = "d68c49f4-2d0c-4ce7-b7a7-5911fe9cae61";
+
+  const CHARACTERISTIC_UUID = "21054410-5589-4eb7-9ed6-aad09adbfdab";
+
+  /**
+   * BLEに接続するボタンです。
+   */
+  let connectButton;
+  /**
+   * 初期化処理です。
+   */
+  function init() {
+    connectButton = document.querySelector("#ble-connect-button");
+    connectButton.addEventListener("click", connectBLE);
+  }
+
+  /**
+   * Web Bluetooth APIでBLEデバイスに接続します。
+   */
+  function connectBLE() {
+    navigator.bluetooth.requestDevice({
+      filters: [
+        {
+          services: [
+            SERVICE_UUID
+          ]
+        }
+      ]
+    })
+      .then(device => {
+        console.log("デバイスを選択しました。接続します。");
+        console.log("デバイス名 : " + device.name);
+        console.log("ID : " + device.id);
+
+        // 選択したデバイスに接続
+        return device.gatt.connect();
+      })
+      .then(server => {
+        console.log("デバイスへの接続に成功しました。サービスを取得します。");
+
+        // UUIDに合致するサービス(機能)を取得
+        return server.getPrimaryService(SERVICE_UUID);
+      })
+      .then(service => {
+        console.log("サービスの取得に成功しました。キャラクタリスティックを取得します。");
+
+        // UUIDに合致するキャラクタリスティック(サービスが扱うデータ)を取得
+        return Promise.all([
+          service.getCharacteristic(CHARACTERISTIC_UUID)
+        ]);
+      })
+      .then(characteristic => {
+//        characteristic = characteristic[0];
+
+        console.log("BLE接続が完了しました。");
+
+
+      })
+      .catch(error => {
+        console.log("Error : " + error);
+      });
+  }
+  window.addEventListener("load", init);
+</script>
 </body>
 </html>
-
