@@ -45,7 +45,14 @@
     </div>
   </nav>
 
-Web Bluetoothを使ったリモコンを作る予定です．
+デバイス情報
+<ul>
+<li>CPU温度: <span id='CPU_TEMP'/></li>
+<li>CPUクロック: <span id='CPU_CLOCK'/></li>
+<li>電源ボルト: <span id='VOLT'/></li>
+<li>ARMメモリ: <span id='ARM_MEM'/></li>
+<li>GPUメモリ: <span id='GPU_MEM'/></li>
+</ul>
 
 <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.3/umd/popper.min.js" integrity="sha384-ZMP7rVo3mIykV+2+9J3UJ46jBk0WLaUAdn689aCwoqbBJiSnjAK/l8WvCWPIPm49" crossorigin="anonymous"></script>
@@ -54,7 +61,33 @@ Web Bluetoothを使ったリモコンを作る予定です．
 
   const SERVICE_UUID = "d68c49f4-2d0c-4ce7-b7a7-5911fe9cae61";
 
-  const CHARACTERISTIC_UUID = "21054410-5589-4eb7-9ed6-aad09adbfdab";
+  // CPU 温度 (vcgencmd measure_temp)
+  const CPU_TEMP_CHARACTERISTIC_UUID  = "21050110-5589-4eb7-9ed6-aad09adbfdab";
+  // CPU 周波数 (vcgencmd measure_clock arm)
+  const CPU_CLOCK_CHARACTERISTIC_UUID = "21050120-5589-4eb7-9ed6-aad09adbfdab";
+  // 電圧の取得 (vcgencmd measure_volts)
+  const VOLT_CHARACTERISTIC_UUID      = "21050130-5589-4eb7-9ed6-aad09adbfdab";
+  // CPU(arm) のメモリ使用量 (vcgencmd get_mem arm)
+  const ARM_MEM_CHARACTERISTIC_UUID   = "21050140-5589-4eb7-9ed6-aad09adbfdab";
+  // GPU のメモリ使用量 (vcgencmd get_mem gpu)
+  const GPU_MEM_CHARACTERISTIC_UUID   = "21050150-5589-4eb7-9ed6-aad09adbfdab";
+
+  // 再起動
+  const REBOOT_CHARACTERISTIC_UUID    = "21050210-5589-4eb7-9ed6-aad09adbfdab";
+  // シャットダウン
+  const SHUTDOWN_CHARACTERISTIC_UUID  = "21050220-5589-4eb7-9ed6-aad09adbfdab";
+
+
+  let cpuTempCharacteristic;
+  let cpuTempText;
+  let cpuClockCharacteristic;
+  let cpuClockText;
+  let voltCharacteristic;
+  let voltText;
+  let armMemCharacteristic;
+  let armMemText;
+  let gpuMemCharacteristic;
+  let gpuMemText;
 
   /**
    * BLEに接続するボタンです。
@@ -66,6 +99,12 @@ Web Bluetoothを使ったリモコンを作る予定です．
   function init() {
     connectButton = document.querySelector("#ble-connect-button");
     connectButton.addEventListener("click", connectBLE);
+
+    cpuTempText  = document.querySelector("#CPU_TEMP");
+    cpuClockText = document.querySelector("#CPU_CLOCK");
+    voltText     = document.querySelector("#VOLT");
+    armMemText   = document.querySelector("#ARM_MEM");
+    gpuMemText   = document.querySelector("#GPU_MEM");
   }
 
   /**
@@ -100,20 +139,91 @@ Web Bluetoothを使ったリモコンを作る予定です．
 
         // UUIDに合致するキャラクタリスティック(サービスが扱うデータ)を取得
         return Promise.all([
-          service.getCharacteristic(CHARACTERISTIC_UUID)
+          service.getCharacteristic(CPU_TEMP_CHARACTERISTIC_UUID),
+          service.getCharacteristic(CPU_CLOCK_CHARACTERISTIC_UUID),
+          service.getCharacteristic(VOLT_CHARACTERISTIC_UUID),
+          service.getCharacteristic(ARM_MEM_CHARACTERISTIC_UUID),
+          service.getCharacteristic(GPU_MEM_CHARACTERISTIC_UUID)
         ]);
       })
       .then(characteristic => {
-//        characteristic = characteristic[0];
+        cpuTempCharacteristic  = characteristic[0];
+        cpuClockCharacteristic = characteristic[1];
+        voltCharacteristic     = characteristic[2];
+        armMemCharacteristic   = characteristic[3];
+        gpuMemCharacteristic   = characteristic[4];
 
         console.log("BLE接続が完了しました。");
 
-
+        loadValue();
       })
       .catch(error => {
         console.log("Error : " + error);
       });
   }
+
+  function loadValue() {
+    // 1秒ごとにセンサーの値を取得
+    setInterval(function () {
+      let cpu_temp;
+      let cpu_clock;
+      let volt;
+      let arm_mem;
+      let gpu_mem;
+
+      // 湿度の値を読み込む
+      cpuTempCharacteristic.readValue()
+        .then(value => {
+          // 湿度を取得
+          cpu_temp = String.fromCharCode.apply(null, new Uint8Array(value.buffer));
+          return cpuClockCharacteristic.readValue();
+        })
+        .then(value => {
+          // クロック数を取得
+          cpu_clock = String.fromCharCode.apply(null, new Uint8Array(value.buffer));
+          return voltCharacteristic.readValue();
+        })
+        .then(value => {
+          // クロック数を取得
+          volt = String.fromCharCode.apply(null, new Uint8Array(value.buffer));
+          return armMemCharacteristic.readValue();
+        })
+        .then(value => {
+          // クロック数を取得
+          arm_mem = String.fromCharCode.apply(null, new Uint8Array(value.buffer));
+          return gpuMemCharacteristic.readValue();
+        })
+        .then(value => {
+          // クロック数を取得
+          gpu_mem = String.fromCharCode.apply(null, new Uint8Array(value.buffer));
+
+          cpuTempText.innerHTML = cpu_temp;
+          cpuClockText.innerHTML = cpu_clock;
+          voltText.innerHTML = volt;
+          armMemText.innerHTML = arm_mem;
+          gpuMemText.innerHTML = gpu_mem;
+        })
+        .catch(error => {
+          console.log("Error : " + error);
+        });
+
+    }, 1000);
+  }
+
+  /**
+   * 温度・湿度を表示します。
+   */
+  function showMainView() {
+    // 接続ボタン
+    connectButton.className = "hide";
+
+    // loading非表示
+    loading.className = "hide";
+
+    // 湿度・温度表示
+    mainView.className = "show";
+  }
+
   window.addEventListener("load", init);
 </script>
 </body>
